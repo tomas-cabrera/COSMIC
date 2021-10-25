@@ -122,6 +122,11 @@ def get_cmc_sampler(
         the initial tidal radius of the cluster, in units of the virial_radius
         Default -- 1e6 rvir
 
+    central_bh : `float`
+        Put a central massive black hole in the cluster
+        Default -- 0 MSUN
+
+
     seed : `float`
         seed to the random number generator, for reproducability
 
@@ -221,10 +226,11 @@ def get_cmc_sampler(
     )
 
     singles_table.metallicity = met
-    singles_table.mass_of_cluster = np.sum(singles_table["m"])
     binaries_table.metallicity = met
     singles_table.virial_radius = kwargs.get("virial_radius",1) 
     singles_table.tidal_radius = kwargs.get("tidal_radius",1e6) 
+    singles_table.central_bh = kwargs.get("central_bh",0)
+    singles_table.mass_of_cluster = np.sum(singles_table["m"]) + singles_table.central_bh
 
     return singles_table, binaries_table
 
