@@ -505,7 +505,7 @@ def calc_Roche_radius(M1, M2, A):
     )
 
 
-def mass_min_max_select(kstar_1, kstar_2):
+def mass_min_max_select(kstar_1, kstar_2, **kwargs):
     """Select a minimum and maximum mass to filter out binaries in the initial
     parameter sample to reduce the number of unneccessary binaries evolved
     in BSE
@@ -531,11 +531,16 @@ def mass_min_max_select(kstar_1, kstar_2):
         maximum secondary mass for initial sample
     """
 
-    primary_max = 150.0
-    secondary_max = 150.0
+    primary_max = kwargs["m_max"] if "m_max" in kwargs.keys() else 150.0
+    secondary_max = kwargs["m_max"] if "m_max" in kwargs.keys() else 150.0
 
-    primary_min = 0.08
-    secondary_min = 0.08
+    primary_min = kwargs["m1_min"] if "m1_min" in kwargs.keys() else 0.08
+    secondary_min = kwargs["m2_min"] if "m2_min" in kwargs.keys() else 0.08
+
+    if ((primary_min < 0.08) | (secondary_min < 0.08)):
+        warnings.warn("Tread carefully, BSE is not equipped to handle stellar masses less than 0.08 Msun!")
+    if primary_max > 150:
+        warnings.warn("Tread carefully, BSE is not equipped to handle stellar masses greater than 150 Msun!")
 
     min_mass = [primary_min, secondary_min]
     max_mass = [primary_max, secondary_max]
@@ -955,6 +960,13 @@ def error_check(BSEDict, filters=None, convergence=None, sampling=None):
 
     flag = "zsun"
     if flag in BSEDict.keys():
+        if BSEDict[flag] != 0.019:
+            warnings.warn(
+                "'{0:s}' is set to a different value than assumed in the mlwind "
+                "prescriptions (you set it to '{1:0.2f}' and in mlwind, zsun_wind=0.019)".format(
+                    flag, BSEDict[flag]
+                )
+            )
         if BSEDict[flag] <= 0:
             raise ValueError(
                 "'{0:s}' needs to be greater than 0 (you set it to '{1:0.2f}')".format(
