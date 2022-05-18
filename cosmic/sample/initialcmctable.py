@@ -102,10 +102,13 @@ class InitialCMCTable(pd.DataFrame):
         """
 
         # Normalize the masses to the total cluster mass
-        M_total = sum(Singles["m"]) + central_bh
+        M_total = sum(Singles["m"]) 
         Singles["m"] /= M_total
         Binaries["m1"] /= M_total
         Binaries["m2"] /= M_total
+
+        # Note if there's an central BH, we want to add it
+        # to the mass of the already normalized stars (i.e. M_tot = 1+BH)
         Singles.ScaleCentralBHMass(M_total)
 
         # Take the radii, and offset by one
