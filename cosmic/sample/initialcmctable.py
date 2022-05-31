@@ -64,7 +64,8 @@ class InitialCMCTable(pd.DataFrame):
     mass_of_cluster = None
     virial_radius = None
     tidal_radius = None
-    central_bh = 0.0 
+    central_bh = 0.0
+    scale_with_central_bh = False
 
     def ScaleCentralBHMass(self, Mtotal):
         """Rescale the central BH mass; needed since this is a class attribute
@@ -77,7 +78,7 @@ class InitialCMCTable(pd.DataFrame):
         self.central_bh /= Mtotal
 
     @classmethod
-    def ScaleToNBodyUnits(cls, Singles, Binaries, virial_radius=1, central_bh=0):
+    def ScaleToNBodyUnits(cls, Singles, Binaries, virial_radius=1, central_bh=0, scale_with_central_bh=False):
         """Rescale the single masses, radii, and velocities into N-body units
            i.e. \sum m = M = 1
                  Kinetic Energy   = 0.25
@@ -130,8 +131,9 @@ class InitialCMCTable(pd.DataFrame):
             * np.cumsum((cumul_mass * (1.0 / radius - 1.0 / radius_p1))[::-1])
         )
 
-        # Also add the potential from any central BH
-        PE += np.sum(Singles.central_bh*mass / radius) 
+        # If scaling with central BH, add the potential from it
+        if scale_with_central_bh:
+            PE += np.sum(Singles.central_bh*mass / radius) 
 
         # Compute the position and velocity scalings
         rfac = 2 * PE
@@ -297,6 +299,7 @@ class InitialCMCTable(pd.DataFrame):
         tidal_radius = kwargs.pop('tidal_radius',Singles.tidal_radius)
         metallicity = kwargs.pop('metallicity',Singles.metallicity)
         central_bh = kwargs.pop('central_bh',Singles.central_bh)
+        scale_with_central_bh = kwargs.pop('scale_with_central_bh',Singles.scale_with_central_bh)
 
         # If a user has not already scaled the units of the Singles and Binaries tables,
         # and the attribute mass_of_cluster is None, then
@@ -304,11 +307,11 @@ class InitialCMCTable(pd.DataFrame):
         if (not Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is None):
             Singles.mass_of_cluster = np.sum(Singles["m"]) + central_bh
             InitialCMCTable.ScaleToNBodyUnits(
-                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh
+                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh, scale_with_central_bh=scale_with_central_bh
             )
         elif (not Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is not None):
             InitialCMCTable.ScaleToNBodyUnits(
-                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh
+                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh, scale_with_central_bh=scale_with_central_bh
             )
         elif (Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is None):
             # we cannot get the pre-scaled mass of the cluster
