@@ -38,7 +38,7 @@ __all__ = ["get_cmc_sampler", "CMCSample"]
 def get_cmc_sampler(
     cluster_profile, primary_model, ecc_model, porb_model, binfrac_model, met, size, **kwargs
 ):
-    """Generates an initial binary sample according to user specified models
+    """Generates an initial cluster sample according to user specified models
 
     Parameters
     ----------
@@ -121,6 +121,11 @@ def get_cmc_sampler(
     tidal_radius : `float`
         the initial tidal radius of the cluster, in units of the virial_radius
         Default -- 1e6 rvir
+
+    central_bh : `float`
+        Put a central massive black hole in the cluster
+        Default -- 0 MSUN
+
 
     seed : `float`
         seed to the random number generator, for reproducability
@@ -221,10 +226,11 @@ def get_cmc_sampler(
     )
 
     singles_table.metallicity = met
-    singles_table.mass_of_cluster = np.sum(singles_table["m"])
     binaries_table.metallicity = met
     singles_table.virial_radius = kwargs.get("virial_radius",1) 
     singles_table.tidal_radius = kwargs.get("tidal_radius",1e6) 
+    singles_table.central_bh = kwargs.get("central_bh",0)
+    singles_table.mass_of_cluster = np.sum(singles_table["m"]) + singles_table.central_bh
 
     return singles_table, binaries_table
 
@@ -239,7 +245,8 @@ register_sampler(
 def get_cmc_point_mass_sampler(
     cluster_profile, size, **kwargs
 ):
-    """Generates an CMC cluster model according  
+    """Generates an CMC cluster model according to user-specified model.
+    Note here that masses will all be unity (with total cluster normalized accordingly)
 
     Parameters
     ----------
@@ -265,6 +272,21 @@ def get_cmc_point_mass_sampler(
     size : `int`
         Size of the population to sample
 
+    Optional Parameters
+    -------------------
+    virial_radius : `float`
+        the initial virial radius of the cluster, in parsecs
+        Default -- 1 pc
+
+    tidal_radius : `float`
+        the initial tidal radius of the cluster, in units of the virial_radius
+        Default -- 1e6 rvir
+
+    central_bh : `float`
+        Put a central massive black hole in the cluster.  Note here units are 
+        in code units (i.e. where every particle has mass 1)
+        Default -- 0 
+
     Returns
     -------
     Singles: `pandas.DataFrame`
@@ -286,8 +308,6 @@ def get_cmc_point_mass_sampler(
     singles_table = InitialCMCTable.InitialCMCSingles(
         single_ids + 1, initconditions.set_kstar(mass1), mass1, Reff, r, vr, vt, binind
     )
-    # Already scaled from the IC generators
-    singles_table.scaled_to_nbody_units = True
 
     # We assume no binaries for the point mass models
     binaries_table = InitialCMCTable.InitialCMCBinaries(1,1,0,0,0,1,0,0,0,0,0)
@@ -297,6 +317,13 @@ def get_cmc_point_mass_sampler(
     binaries_table.metallicity = 0.02
     singles_table.virial_radius = kwargs.get("virial_radius",1) 
     singles_table.tidal_radius = kwargs.get("tidal_radius",1e6) 
+    singles_table.central_bh = kwargs.get("central_bh",0)
+
+    # Already scaled from the IC generators (unless we've added a central BH)
+    if singles_table.central_bh != 0:
+        singles_table.scaled_to_nbody_units = False 
+    else:
+        singles_table.scaled_to_nbody_units = True
    
     return singles_table, binaries_table
 
