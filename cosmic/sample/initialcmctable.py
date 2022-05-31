@@ -57,15 +57,28 @@ INITIAL_CONDITIONS_COLUMNS_CMC_BINARIES = [
 
 
 class InitialCMCTable(pd.DataFrame):
+    #TODO: why are these all class variables?
+    #      They should definitely be instance attributes...
     scaled_to_nbody_units = False
     metallicity = None
     mass_of_cluster = None
     virial_radius = None
     tidal_radius = None
+    central_bh = 0.0 
+
+    def ScaleCentralBHMass(self, Mtotal):
+        """Rescale the central BH mass; needed since this is a class attribute
+            Parameters
+            ----------
+
+            Mtotal : float
+                total mass of the cluster
+        """
+        self.central_bh /= Mtotal
 
     @classmethod
-    def ScaleToNBodyUnits(cls, Singles, Binaries, virial_radius=1):
-        r"""Rescale the single masses, radii, and velocities into N-body units
+    def ScaleToNBodyUnits(cls, Singles, Binaries, virial_radius=1, central_bh=0):
+        """Rescale the single masses, radii, and velocities into N-body units
            i.e. \sum m = M = 1
                  Kinetic Energy   = 0.25
                  Potential Energy = -0.5
@@ -89,10 +102,14 @@ class InitialCMCTable(pd.DataFrame):
         """
 
         # Normalize the masses to the total cluster mass
-        M_total = sum(Singles["m"])
+        M_total = sum(Singles["m"]) 
         Singles["m"] /= M_total
         Binaries["m1"] /= M_total
         Binaries["m2"] /= M_total
+
+        # Note if there's an central BH, we want to add it
+        # to the mass of the already normalized stars (i.e. M_tot = 1+BH)
+        Singles.ScaleCentralBHMass(M_total)
 
         # Take the radii, and offset by one
         radius = np.array(Singles["r"])
@@ -107,11 +124,14 @@ class InitialCMCTable(pd.DataFrame):
         # Then compute the total kinetic and potential energy
         # There's probably a cleaner way to do the PE (this is a one-line version
         #  of the for loop we use in CMC; vectorized and pythonic, but sloppy)
-        KE = 0.5 * sum(mass * (vr ** 2 + vt ** 2))
-        PE = 0.5 * sum(
+        KE = 0.5 * np.sum(mass * (vr ** 2 + vt ** 2))
+        PE = 0.5 * np.sum(
             mass[::-1]
             * np.cumsum((cumul_mass * (1.0 / radius - 1.0 / radius_p1))[::-1])
         )
+
+        # Also add the potential from any central BH
+        PE += np.sum(Singles.central_bh*mass / radius) 
 
         # Compute the position and velocity scalings
         rfac = 2 * PE
@@ -276,18 +296,19 @@ class InitialCMCTable(pd.DataFrame):
         virial_radius = kwargs.pop('virial_radius',Singles.virial_radius)
         tidal_radius = kwargs.pop('tidal_radius',Singles.tidal_radius)
         metallicity = kwargs.pop('metallicity',Singles.metallicity)
+        central_bh = kwargs.pop('central_bh',Singles.central_bh)
 
         # If a user has not already scaled the units of the Singles and Binaries tables,
         # and the attribute mass_of_cluster is None, then
         # we can calculate it now
         if (not Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is None):
-            Singles.mass_of_cluster = np.sum(Singles["m"])
+            Singles.mass_of_cluster = np.sum(Singles["m"]) + central_bh
             InitialCMCTable.ScaleToNBodyUnits(
-                Singles, Binaries, virial_radius=virial_radius
+                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh
             )
         elif (not Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is not None):
             InitialCMCTable.ScaleToNBodyUnits(
-                Singles, Binaries, virial_radius=virial_radius
+                Singles, Binaries, virial_radius=virial_radius, central_bh=central_bh
             )
         elif (Singles.scaled_to_nbody_units) and (Singles.mass_of_cluster is None):
             # we cannot get the pre-scaled mass of the cluster
@@ -312,6 +333,7 @@ class InitialCMCTable(pd.DataFrame):
         singles = singles.append(singles_bottom)
         singles["r"].iloc[-1] = 1e40
         singles["r"].iloc[0] = 2.2250738585072014e-308
+        singles["m"].iloc[0] = Singles.central_bh
 
         # Add a special row to the end of Bianries table
         binaries = pd.DataFrame(
