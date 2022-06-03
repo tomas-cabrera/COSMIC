@@ -94,7 +94,8 @@ C      if(mt0.gt.100.d0) mt = 100.d0
       thg = tscls(1) - tm
 *
       rzams = rzamsf(mass)
-      rtms = rtmsf(mass)
+      z = 10**(LOG10(zpars(14))/0.4)
+      rtms = rtmsf(mass, z)
 *
       if(aj.lt.tscls(1))then
 *
