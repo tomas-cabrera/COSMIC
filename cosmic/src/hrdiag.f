@@ -26,6 +26,7 @@
       integer kw,kwp,kidx
 *
       real*8 mass,aj,mt,tm,tn,tscls(20),lums(10),GB(10),zpars(20)
+      real*8 z
       real*8 bhspin
       real*8 r,lum,mc,rc,menv,renv,k2
       real*8 mch,mlp,tiny
