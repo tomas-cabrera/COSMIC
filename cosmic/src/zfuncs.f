@@ -206,7 +206,7 @@
       return
       end
 ***
-      real*8 FUNCTION rtmsf(m)
+      real*8 FUNCTION rtmssse(m)
       implicit none
       real*8 m,m2,rchk,a(200)
       common /MSCFF/ a
@@ -221,12 +221,36 @@
       m2 = a(62) + 0.1d0
       if(m.le.a(62))then
          rchk = 1.5d0*rzamsf(m)
-         rtmsf = MAX(rchk,(a(52) + a(53)*m**a(55))/(a(54) + m**a(56)))
+         rtmssse = MAX(rchk,(a(52) + a(53)*m**a(55))/(a(54) + m**a(56)))
       elseif(m.ge.m2)then
-         rtmsf = (a(57)*m**3+a(58)*m**a(61)+a(59)*m**(a(61)+1.5d0))/
+         rtmssse = (a(57)*m**3+a(58)*m**a(61)+a(59)*m**(a(61)+1.5d0))/
      &           (a(60) + m**5)
       else
-         rtmsf = a(63) + ((a(64) - a(63))/0.1d0)*(m - a(62))
+         rtmssse = a(63) + ((a(64) - a(63))/0.1d0)*(m - a(62))
+      endif
+*
+      return
+      end
+***
+      real*8 FUNCTION rtmsf(m, z)
+      implicit none
+      real*8 m,z,Rtms200,Rtms199,slope,zcut
+      real*8 rtmssse
+      external rtmssse
+*
+* For Z < 0.04 Z_sun (i.e. Z < 0.0008) the polynomial fitting extrapolation of
+* Hurley et al. leads to negative stellar radii at the end of the main sequence.
+* This fix calculates the slope of the Rtms-M curve for a given Z at M=200 and
+* extrapolates the Rtms linearly for M>200 assuming the same slope. The fix is
+* only applied to stars with Z < 0.0008
+      zcut = 0.04*0.02
+      if( (m .le. 200.0) .OR. (z .ge. zcut) )then
+         rtmsf = rtmssse(m)
+      else
+         Rtms200 = rtmssse(DFLOAT(200))
+         Rtms199 =  rtmssse(DFLOAT(199))
+         slope = Rtms200 - Rtms199;
+         rtmsf = Rtms200 + slope*(m-200.0)
       endif
 *
       return
