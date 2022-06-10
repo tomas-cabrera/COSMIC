@@ -125,7 +125,10 @@ def get_cmc_sampler(
     central_bh : `float`
         Put a central massive black hole in the cluster
         Default -- 0 MSUN
-
+        
+    scale_with_central_bh : `bool`
+        If True, then the potential from the central_bh is included when scaling the radii.
+        Default -- False
 
     seed : `float`
         seed to the random number generator, for reproducability
@@ -286,7 +289,14 @@ def get_cmc_point_mass_sampler(
     central_bh : `float`
         Put a central massive black hole in the cluster.  Note here units are 
         in code units (i.e. where every particle has mass 1)
-        Default -- 0 
+        Default -- 0
+        
+    scale_with_central_bh : `bool`
+        If True, then the potential from the central_bh is included when scaling the radii.
+        Default -- False
+
+    seed : `float`
+        seed to the random number generator, for reproducability
 
     Returns
     -------
@@ -297,6 +307,11 @@ def get_cmc_point_mass_sampler(
 
     """
     initconditions = CMCSample()
+
+    # if RNG seed is provided, then use it globally
+    rng_seed = kwargs.pop("seed", 0)
+    if rng_seed != 0:
+        np.random.seed(rng_seed)
 
     # get radii, radial and transverse velocities
     r, vr, vt = initconditions.set_r_vr_vt(cluster_profile, N=size, **kwargs)
@@ -314,12 +329,12 @@ def get_cmc_point_mass_sampler(
     binaries_table = InitialCMCTable.InitialCMCBinaries(1,1,0,0,0,1,0,0,0,0,0)
 
     singles_table.metallicity = 0.02
-    singles_table.mass_of_cluster = np.sum(singles_table["m"])*size
     binaries_table.metallicity = 0.02
     singles_table.virial_radius = kwargs.get("virial_radius",1) 
     singles_table.tidal_radius = kwargs.get("tidal_radius",1e13) 
     singles_table.central_bh = kwargs.get("central_bh",0)
     singles_table.scale_with_central_bh = kwargs.get("scale_with_central_bh",False)
+    singles_table.mass_of_cluster = (np.sum(singles_table["m"]) + singles_table.central_bh) * size
 
     # Already scaled from the IC generators (unless we've added a central BH)
     if singles_table.central_bh != 0:
